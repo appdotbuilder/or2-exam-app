@@ -1,19 +1,33 @@
 
+import { db } from '../db';
+import { examSessionsTable } from '../db/schema';
 import { type ExamSession } from '../schema';
+import { eq } from 'drizzle-orm';
 
 export async function endExam(sessionId: number): Promise<ExamSession> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is ending an active exam session
-    // - Update the session to set ended_at timestamp
-    // - Set is_active to false
-    // - Return the updated exam session
-    return Promise.resolve({
-        id: sessionId,
-        student_id: 1,
-        started_at: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
+  try {
+    // Update the exam session to end it
+    const result = await db.update(examSessionsTable)
+      .set({
         ended_at: new Date(),
-        duration_minutes: 30,
-        is_active: false,
-        created_at: new Date()
-    } as ExamSession);
+        is_active: false
+      })
+      .where(eq(examSessionsTable.id, sessionId))
+      .returning()
+      .execute();
+
+    if (result.length === 0) {
+      throw new Error(`Exam session with id ${sessionId} not found`);
+    }
+
+    // Return the updated exam session
+    const session = result[0];
+    return {
+      ...session,
+      duration_minutes: session.duration_minutes // Integer column - no conversion needed
+    };
+  } catch (error) {
+    console.error('End exam failed:', error);
+    throw error;
+  }
 }

@@ -1,11 +1,23 @@
 
+import { db } from '../db';
+import { studentAnswersTable } from '../db/schema';
 import { type StudentAnswer } from '../schema';
+import { eq } from 'drizzle-orm';
 
 export async function getStudentAnswers(sessionId: number): Promise<StudentAnswer[]> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is fetching all answers for a specific exam session
-    // - Get all answers submitted by the student in the given session
-    // - Include question details for each answer
-    // - Return the list of answers
-    return Promise.resolve([]);
+  try {
+    const results = await db.select()
+      .from(studentAnswersTable)
+      .where(eq(studentAnswersTable.session_id, sessionId))
+      .execute();
+
+    // Convert numeric fields back to numbers
+    return results.map(answer => ({
+      ...answer,
+      score: answer.score ? parseFloat(answer.score) : null
+    }));
+  } catch (error) {
+    console.error('Get student answers failed:', error);
+    throw error;
+  }
 }

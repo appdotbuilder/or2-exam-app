@@ -1,11 +1,42 @@
 
+import { db } from '../db';
+import { questionsTable } from '../db/schema';
 import { type Question } from '../schema';
+import { eq, or } from 'drizzle-orm';
 
 export async function getQuestions(lecturerId?: number): Promise<Question[]> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is fetching questions from database
-    // - If lecturerId provided, return all questions (for lecturer view)
-    // - If no lecturerId, return only approved/active questions (for student exam)
-    // - Include proper filtering based on user role
-    return Promise.resolve([]);
+  try {
+    // If no lecturerId provided, only return approved/active questions (for students)
+    if (!lecturerId) {
+      const results = await db.select()
+        .from(questionsTable)
+        .where(
+          or(
+            eq(questionsTable.status, 'approved'),
+            eq(questionsTable.status, 'active')
+          )
+        )
+        .execute();
+
+      // Convert numeric fields back to numbers
+      return results.map(question => ({
+        ...question,
+        max_score: parseFloat(question.max_score)
+      }));
+    }
+
+    // If lecturerId provided, return all questions (for lecturer view)
+    const results = await db.select()
+      .from(questionsTable)
+      .execute();
+
+    // Convert numeric fields back to numbers
+    return results.map(question => ({
+      ...question,
+      max_score: parseFloat(question.max_score)
+    }));
+  } catch (error) {
+    console.error('Failed to fetch questions:', error);
+    throw error;
+  }
 }

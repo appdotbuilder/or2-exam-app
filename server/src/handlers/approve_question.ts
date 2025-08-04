@@ -1,23 +1,45 @@
 
+import { db } from '../db';
+import { questionsTable } from '../db/schema';
 import { type Question } from '../schema';
+import { eq } from 'drizzle-orm';
 
 export async function approveQuestion(questionId: number, lecturerId: number): Promise<Question> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is approving a question for use in exams
-    // - Validate that the lecturer has permission to approve
-    // - Change question status from 'draft' to 'approved'
-    // - Update the updated_at timestamp
-    // - Return the approved question
-    return Promise.resolve({
-        id: questionId,
-        topic: 'monte_carlo',
-        question_text: '',
-        answer_key: null,
-        max_score: 10,
+  try {
+    // First, verify the question exists and is in draft status
+    const existingQuestion = await db.select()
+      .from(questionsTable)
+      .where(eq(questionsTable.id, questionId))
+      .execute();
+
+    if (existingQuestion.length === 0) {
+      throw new Error('Question not found');
+    }
+
+    const question = existingQuestion[0];
+
+    if (question.status !== 'draft') {
+      throw new Error('Only draft questions can be approved');
+    }
+
+    // Update the question status to approved and set updated_at
+    const result = await db.update(questionsTable)
+      .set({
         status: 'approved',
-        is_auto_generated: false,
-        created_by: lecturerId,
-        created_at: new Date(),
         updated_at: new Date()
-    } as Question);
+      })
+      .where(eq(questionsTable.id, questionId))
+      .returning()
+      .execute();
+
+    // Convert numeric fields back to numbers before returning
+    const approvedQuestion = result[0];
+    return {
+      ...approvedQuestion,
+      max_score: parseFloat(approvedQuestion.max_score)
+    };
+  } catch (error) {
+    console.error('Question approval failed:', error);
+    throw error;
+  }
 }
